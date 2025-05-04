@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { GovsyncModule } from './govsync/govsync.module';
 
 @Module({
-  imports: [],
+  imports: [GovsyncModule],
   controllers: [AppController],
   providers: [AppService],
 })
