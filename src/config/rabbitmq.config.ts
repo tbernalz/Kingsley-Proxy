@@ -1,10 +1,14 @@
 export const rabbitMQConfig = () => ({
-  queues: {
+  exchanges: {
     consumer: {
       user: 'kingsley_proxy_users_requests',
     },
-    publiser: {
-      user: 'kingsley_proxy_users_responses',
-    },
+    publisher: {},
+  },
+  queues: {
+    userRequest: 'users.request.queue',
+  },
+  routingKeys: {
+    userRequest: 'user.request',
   },
 });

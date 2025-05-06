@@ -1,16 +1,14 @@
 import { Module } from '@nestjs/common';
 import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
+import { RABBITMQ_CONFIG } from 'src/config/rabbitmq.constants';
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 @Module({
   imports: [
     RabbitMQModule.forRoot({
       exchanges: [
-        { name: 'user_exchange', type: 'topic' },
-        { name: 'operator_exchange', type: 'topic' },
-        { name: 'document_exchange', type: 'topic' },
-        { name: 'user_dlx', type: 'topic' }, // Dead letter exchanges
-        { name: 'operator_dlx', type: 'topic' },
-        { name: 'document_dlx', type: 'topic' },
+        { name: RABBITMQ_CONFIG.exchanges.consumer.user, type: 'topic' },
       ],
       uri: process.env.RABBITMQ_URI || '',
     }),
