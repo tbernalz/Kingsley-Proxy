@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 
 import { RABBITMQ_CONFIG } from '../../config/rabbitmq.constants';
-import { GovsyncService } from '../govsync.service';
+import { GovsyncService } from 'src/govsync/govsync.service';
 import { UserEventTypeEnum } from '../enum/user-event-type.enum';
 import { UserRequestEventDto } from '../dto/user-request-event.dto';
 
