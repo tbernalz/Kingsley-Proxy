@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 
 import { RABBITMQ_CONFIG } from '../../config/rabbitmq.constants';
+import { GovsyncService } from '../govsync.service';
 import { UserEventTypeEnum } from '../enum/user-event-type.enum';
 import { UserRequestEventDto } from '../dto/user-request-event.dto';
 
@@ -10,6 +11,8 @@ export class UserConsumer {
   private readonly logger = new Logger(UserConsumer.name);
 
   private static readonly userRequestQueue = RABBITMQ_CONFIG;
+
+  constructor(private readonly govsyncService: GovsyncService) {}
 
   @RabbitSubscribe({
     exchange: UserConsumer.userRequestQueue.exchanges.consumer.user,
@@ -37,6 +40,17 @@ export class UserConsumer {
 
       switch (operation) {
         case UserEventTypeEnum.VERIFY:
+          const response = await this.govsyncService.handleVerifyUser(userId);
+          if (response.statusCode == 200) {
+            const currentUserOperador = response.message
+              .split('operador: ')[1]
+              .trim();
+            // async communication with notify microservice to send an email to the user saying that's already sync with the operator currentUserOperador
+            // async communication with user microservice to delete that user from the user DB
+          } else {
+            // async communication with the notify auth microservice to send an email to the user to set the password
+            // when the user completes the password set in FireBase Auth, it will call a user microservice webhook to to update that user from the user DB (active: true, GovCarpetaVerified: true)
+          }
 
         case UserEventTypeEnum.CREATE:
 
