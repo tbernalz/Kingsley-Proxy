@@ -10,7 +10,7 @@ dotenv.config();
       exchanges: [
         { name: RABBITMQ_CONFIG.exchanges.consumer.user, type: 'topic' },
       ],
-      uri: process.env.RABBITMQ_URI || '',
+      uri: `amqp://${process.env.RABBITMQ_USER}:${process.env.RABBITMQ_PASS}@${process.env.RABBITMQ_HOST}:${process.env.RABBITMQ_PORT}/${process.env.RABBITMQ_VHOST}`,
     }),
   ],
   exports: [RabbitMQModule],
