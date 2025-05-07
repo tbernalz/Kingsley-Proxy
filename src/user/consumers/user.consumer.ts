@@ -9,14 +9,14 @@ import { UserRequestEventDto } from '../dto/user-request-event.dto';
 export class UserConsumer {
   private readonly logger = new Logger(UserConsumer.name);
 
-  private static readonly userRequestQueue = RABBITMQ_CONFIG;
+  private static readonly rabbitmqConfig = RABBITMQ_CONFIG;
 
-  constructor(private readonly userPublisher: UserService) {}
+  constructor(private readonly userService: UserService) {}
 
   @RabbitSubscribe({
-    exchange: UserConsumer.userRequestQueue.exchanges.consumer.user,
-    routingKey: UserConsumer.userRequestQueue.routingKeys.userRequest,
-    queue: UserConsumer.userRequestQueue.queues.userRequest,
+    exchange: UserConsumer.rabbitmqConfig.exchanges.consumer.user,
+    routingKey: UserConsumer.rabbitmqConfig.routingKeys.userRequest,
+    queue: UserConsumer.rabbitmqConfig.queues.userRequest,
     queueOptions: {
       durable: true,
       deadLetterExchange: 'users_request_dlx',
@@ -29,7 +29,7 @@ export class UserConsumer {
     userRequestEventDto: UserRequestEventDto,
   ): Promise<void> {
     this.logger.log(
-      `incoming message to the exchange: ${UserConsumer.userRequestQueue.exchanges.consumer.user} queue: ${JSON.stringify(UserConsumer.userRequestQueue.queues.userCreate)} with routingKey: ${UserConsumer.userRequestQueue.routingKeys.userCreate}`,
+      `incoming message to the exchange: ${UserConsumer.rabbitmqConfig.exchanges.consumer.user} queue: ${JSON.stringify(UserConsumer.rabbitmqConfig.queues.userRequest)} with routingKey: ${UserConsumer.rabbitmqConfig.routingKeys.userRequest}`,
     );
 
     const userId = userRequestEventDto.headers?.userId;
@@ -37,9 +37,9 @@ export class UserConsumer {
     const message = userRequestEventDto.payload;
 
     this.logger.log(
-      `Received user request for userId: ${userId}, operation: ${operation}, message: ${message}`,
+      `Received user request for userId: ${userId}, operation: ${operation}, message: ${JSON.stringify(message)}`,
     );
 
-    await this.userPublisher.handleUserEvents(userId, operation, message);
+    await this.userService.handleUserEvents(userId, operation, message);
   }
 }
