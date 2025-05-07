@@ -1,13 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { RABBITMQ_CONFIG } from 'src/config/rabbitmq.constants';
 import { GovsyncService } from 'src/govsync/govsync.service';
+import { UserPublisher } from './publishers/user.publisher';
 import { UserEventTypeEnum } from './enum/user-event-type.enum';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UnregisterUserDto } from './dto/unregister-user.dto';
 import { UserRequestEventDto } from './dto/user-request-event.dto';
+import { UserOnOtherProviderDto } from './dto/user-on-other-rovider.dto';
 
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
+  private static readonly rabbitmqConfig = RABBITMQ_CONFIG;
 
-  constructor(private readonly govsyncService: GovsyncService) {}
+  constructor(
+    private readonly govsyncService: GovsyncService,
+    private readonly userPublisher: UserPublisher,
+  ) {}
 
   async handleUserEvents(
     userId: UserRequestEventDto['headers']['userId'],
@@ -17,21 +26,14 @@ export class UserService {
     try {
       switch (operation) {
         case UserEventTypeEnum.VERIFY:
-          const response = await this.govsyncService.handleVerifyUser(userId);
-          if (response.statusCode == 200) {
-            const currentUserOperador = response.message
-              .split('operador: ')[1]
-              .trim();
-            // async communication with notify microservice to send an email to the user saying that's already sync with the operator currentUserOperador
-            // async communication with user microservice to delete that user from the user DB
-          } else {
-            // async communication with the notify auth microservice to send an email to the user to set the password
-            // when the user completes the password set in FireBase Auth, it will call a user microservice webhook to to update that user from the user DB (active: true, GovCarpetaVerified: true)
-          }
+          console.log(message.email);
+          await this.verifyUser(userId, message);
 
         case UserEventTypeEnum.CREATE:
+          break;
 
         case UserEventTypeEnum.UNREGISTER:
+          break;
 
         default:
           throw new Error(`Unsupported operation: ${operation}`);
@@ -40,6 +42,56 @@ export class UserService {
       this.logger.error(
         `Message processing in handleUserRequest failed: ${error.message}`,
         error.stack,
+      );
+    }
+  }
+
+  async verifyUser(
+    userId: UserRequestEventDto['headers']['userId'],
+    createUserDto: CreateUserDto,
+  ) {
+    const response = await this.govsyncService.handleVerifyUser(userId);
+    console.log(response);
+    if (response.statusCode == 200) {
+      // user is already registered in another operator
+      const currentUserOperador = response.message
+        .split('operador: ')[1]
+        .trim();
+
+      const payload: UserOnOtherProviderDto = {
+        email: createUserDto.email,
+        name: currentUserOperador,
+      };
+      const notificationMessage: UserRequestEventDto = {
+        eventId: '',
+        payload,
+        headers: {
+          userId: userId,
+          eventType: UserEventTypeEnum.EXISTS_ON_OTHER_PROVIDER,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      await this.userPublisher.publishUserEvent(
+        UserService.rabbitmqConfig.exchanges.publisher.notification,
+        UserService.rabbitmqConfig.routingKeys.notificationRequest,
+        notificationMessage,
+      );
+    } else if (response.statusCode == 204) {
+      // user is available to join us
+      const authMessage: UserRequestEventDto = {
+        eventId: '',
+        payload: { email: createUserDto.email },
+        headers: {
+          userId: userId,
+          eventType: UserEventTypeEnum.FIRST_SIGNIN,
+          timestamp: new Date().toISOString(),
+        },
+      };
+      await this.userPublisher.publishUserEvent(
+        UserService.rabbitmqConfig.exchanges.publisher.auth,
+        UserService.rabbitmqConfig.routingKeys.authRequest,
+        authMessage,
       );
     }
   }
