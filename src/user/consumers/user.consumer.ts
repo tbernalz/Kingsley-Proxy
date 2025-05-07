@@ -1,9 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
-
 import { RABBITMQ_CONFIG } from '../../config/rabbitmq.constants';
 import { UserService } from '../user.service';
-import { UserRequestEventDto } from '../dto/user-request-event.dto';
 
 @Injectable()
 export class UserConsumer {
@@ -26,18 +24,20 @@ export class UserConsumer {
     allowNonJsonMessages: false,
   })
   async handleUserRequest(
-    userRequestEventDto: UserRequestEventDto,
+    message: Record<string, any>,
+    raw: Record<string, any>,
   ): Promise<void> {
+    const headers = raw.properties?.headers || {};
+
     this.logger.log(
-      `incoming message to the exchange: ${UserConsumer.rabbitmqConfig.exchanges.consumer.user} queue: ${JSON.stringify(UserConsumer.rabbitmqConfig.queues.userRequest)} with routingKey: ${UserConsumer.rabbitmqConfig.routingKeys.userRequest}`,
+      `Incoming message to exchange: ${UserConsumer.rabbitmqConfig.exchanges.consumer.user}, queue: ${JSON.stringify(UserConsumer.rabbitmqConfig.queues.userRequest)}, routingKey: ${UserConsumer.rabbitmqConfig.routingKeys.userRequest}`,
     );
 
-    const userId = userRequestEventDto.headers?.userId;
-    const operation = userRequestEventDto.headers?.eventType;
-    const message = userRequestEventDto.payload;
+    const userId = headers?.userId;
+    const operation = headers?.eventType;
 
     this.logger.log(
-      `Received user request for userId: ${userId}, operation: ${operation}, message: ${JSON.stringify(message)}`,
+      `Received user request for userId: ${userId}, operation: ${operation}, message: ${JSON.stringify(message)}, headers: ${JSON.stringify(headers)}`,
     );
 
     await this.userService.handleUserEvents(userId, operation, message);

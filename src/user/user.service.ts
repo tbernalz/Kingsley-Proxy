@@ -4,9 +4,7 @@ import { GovsyncService } from 'src/govsync/govsync.service';
 import { UserPublisher } from './publishers/user.publisher';
 import { UserEventTypeEnum } from './enum/user-event-type.enum';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UnregisterUserDto } from './dto/unregister-user.dto';
 import { UserRequestEventDto } from './dto/user-request-event.dto';
-import { UserOnOtherProviderDto } from './dto/user-on-other-rovider.dto';
 
 @Injectable()
 export class UserService {
@@ -26,7 +24,6 @@ export class UserService {
     try {
       switch (operation) {
         case UserEventTypeEnum.VERIFY:
-          console.log(message.email);
           await this.verifyUser(userId, message);
 
         case UserEventTypeEnum.CREATE:
@@ -58,40 +55,39 @@ export class UserService {
         .split('operador: ')[1]
         .trim();
 
-      const payload: UserOnOtherProviderDto = {
+      const notificationMessage: UserRequestEventDto['payload'] = {
         email: createUserDto.email,
         name: currentUserOperador,
       };
-      const notificationMessage: UserRequestEventDto = {
-        eventId: '',
-        payload,
-        headers: {
-          userId: userId,
-          eventType: UserEventTypeEnum.EXISTS_ON_OTHER_PROVIDER,
-          timestamp: new Date().toISOString(),
-        },
+
+      const headers: UserRequestEventDto['headers'] = {
+        userId: userId,
+        eventType: UserEventTypeEnum.EXISTS_ON_OTHER_PROVIDER,
+        timestamp: new Date().toISOString(),
       };
 
       await this.userPublisher.publishUserEvent(
         UserService.rabbitmqConfig.exchanges.publisher.notification,
         UserService.rabbitmqConfig.routingKeys.notificationRequest,
         notificationMessage,
+        headers,
       );
     } else if (response.statusCode == 204) {
       // user is available to join us
-      const authMessage: UserRequestEventDto = {
-        eventId: '',
-        payload: { email: createUserDto.email },
-        headers: {
-          userId: userId,
-          eventType: UserEventTypeEnum.FIRST_SIGNIN,
-          timestamp: new Date().toISOString(),
-        },
+
+      const authMessage: UserRequestEventDto['payload'] = {
+        email: createUserDto.email,
+      };
+      const headers: UserRequestEventDto['headers'] = {
+        userId: userId,
+        eventType: UserEventTypeEnum.FIRST_SIGNIN,
+        timestamp: new Date().toISOString(),
       };
       await this.userPublisher.publishUserEvent(
         UserService.rabbitmqConfig.exchanges.publisher.auth,
         UserService.rabbitmqConfig.routingKeys.authRequest,
         authMessage,
+        headers,
       );
     }
   }
