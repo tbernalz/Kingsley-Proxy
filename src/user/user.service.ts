@@ -25,8 +25,6 @@ export class UserService {
       switch (operation) {
         case UserEventTypeEnum.VERIFY:
           await this.verifyUser(userId, message);
-
-        case UserEventTypeEnum.CREATE:
           break;
 
         case UserEventTypeEnum.UNREGISTER:
@@ -50,7 +48,6 @@ export class UserService {
     const response = await this.govsyncService.handleVerifyUser(userId);
     console.log(response);
     if (response.statusCode == 200) {
-      // user is already registered in another operator
       const currentUserOperador = response.message
         .split('operador: ')[1]
         .trim();
@@ -73,12 +70,10 @@ export class UserService {
         headers,
       );
     } else if (response.statusCode == 204) {
-      // user is available to join us
-
       const authMessage: UserRequestEventDto['payload'] = {
         email: createUserDto.email,
       };
-      const headers: UserRequestEventDto['headers'] = {
+      const authHeaders: UserRequestEventDto['headers'] = {
         userId: userId,
         eventType: UserEventTypeEnum.FIRST_SIGNIN,
         timestamp: new Date().toISOString(),
@@ -87,8 +82,29 @@ export class UserService {
         UserService.rabbitmqConfig.exchanges.publisher.auth,
         UserService.rabbitmqConfig.routingKeys.authRequest,
         authMessage,
-        headers,
+        authHeaders,
       );
+
+      const { statusCode } =
+        await this.govsyncService.handleCreateUser(createUserDto);
+
+      if (statusCode == 201) {
+        const userMessage: UserRequestEventDto['payload'] = {
+          email: createUserDto.email,
+        };
+
+        const userHeaders: UserRequestEventDto['headers'] = {
+          userId: userId,
+          eventType: UserEventTypeEnum.CREATE,
+          timestamp: new Date().toISOString(),
+        };
+        await this.userPublisher.publishUserEvent(
+          UserService.rabbitmqConfig.exchanges.publisher.user,
+          UserService.rabbitmqConfig.routingKeys.userRequest,
+          userMessage,
+          userHeaders,
+        );
+      }
     }
   }
 }

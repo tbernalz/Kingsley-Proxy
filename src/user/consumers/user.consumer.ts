@@ -14,11 +14,11 @@ export class UserConsumer {
   @RabbitSubscribe({
     exchange: UserConsumer.rabbitmqConfig.exchanges.consumer.user,
     routingKey: UserConsumer.rabbitmqConfig.routingKeys.userRequest,
-    queue: UserConsumer.rabbitmqConfig.queues.userRequest,
+    queue: UserConsumer.rabbitmqConfig.queues.userVerify,
     queueOptions: {
       durable: true,
-      deadLetterExchange: 'users_request_dlx',
-      deadLetterRoutingKey: 'users_request.failed',
+      deadLetterExchange: 'users_request_kingsley_dlx',
+      deadLetterRoutingKey: 'users_request_kingsley.failed',
     },
     createQueueIfNotExists: true,
     allowNonJsonMessages: false,
