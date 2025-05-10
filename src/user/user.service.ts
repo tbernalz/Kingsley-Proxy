@@ -4,7 +4,9 @@ import { GovsyncService } from 'src/govsync/govsync.service';
 import { UserPublisher } from './publishers/user.publisher';
 import { UserEventTypeEnum } from './enum/user-event-type.enum';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UnregisterUserDto } from './dto/unregister-user.dto';
 import { UserRequestEventDto } from './dto/user-request-event.dto';
+import { UserOnOtherProviderDto } from './dto/user-on-other-rovider.dto';
 
 @Injectable()
 export class UserService {
@@ -23,11 +25,15 @@ export class UserService {
   ): Promise<void> {
     try {
       switch (operation) {
-        case UserEventTypeEnum.VERIFY:
+        case UserEventTypeEnum.VERIFY: // same as case UserEventTypeEnum.CREATE: no?
           await this.verifyUser(userId, message);
           break;
 
         case UserEventTypeEnum.UNREGISTER:
+          await this.govsyncService.handleUnregisterUser(
+            message as UnregisterUserDto,
+            userId,
+          );
           break;
 
         default:
@@ -52,6 +58,8 @@ export class UserService {
         .split('operador: ')[1]
         .trim();
 
+      // async communication with notify microservice to send an email to the user saying that's already sync with the operator currentUserOperador
+
       const notificationMessage: UserRequestEventDto['payload'] = {
         email: createUserDto.email,
         name: currentUserOperador,
@@ -69,10 +77,31 @@ export class UserService {
         notificationMessage,
         headers,
       );
+
+      // async communication with user microservice to delete that user from the user DB
+      // maybe we shouldn't delete that user
+
+      //   const authMessage: UserRequestEventDto = {
+      //     eventId: '',
+      //     payload: {},
+      //     headers: {
+      //       userId: userId,
+      //       eventType: UserEventTypeEnum.DELETE,
+      //       timestamp: new Date().toISOString(),
+      //     },
+      //   };
+      //   await this.userPublisher.publishUserEvent(
+      //     UserService.rabbitmqConfig.exchanges.publisher.auth,
+      //     UserService.rabbitmqConfig.routingKeys.authRequest,
+      //     authMessage,
+      //   );
     } else if (response.statusCode == 204) {
+      // user is available to join us
+
+      // async communication with the auth microservice to send an email to the user to set the password
       const authMessage: UserRequestEventDto['payload'] = {
         email: createUserDto.email,
-        documenNumber: createUserDto.documentNumber,
+        documentNumber: createUserDto.documentNumber,
       };
       const authHeaders: UserRequestEventDto['headers'] = {
         userId: userId,
@@ -106,6 +135,9 @@ export class UserService {
           userHeaders,
         );
       }
+
+      // when the user logs-in for the first time, we'll update that user from the user DB (active: true, GovCarpetaVerified: true)
+      // then create the user directory on GCP cloud storage (S3)
     }
   }
 }
