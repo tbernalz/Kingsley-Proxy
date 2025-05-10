@@ -72,6 +72,7 @@ export class UserService {
     } else if (response.statusCode == 204) {
       const authMessage: UserRequestEventDto['payload'] = {
         email: createUserDto.email,
+        documenNumber: createUserDto.documentNumber,
       };
       const authHeaders: UserRequestEventDto['headers'] = {
         userId: userId,
